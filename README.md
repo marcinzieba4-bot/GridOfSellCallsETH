@@ -263,6 +263,22 @@ What it shows:
 - 3-year bootstrap ($10k account, $200/week): ending below $10k happened in 9.6% (ATM), **7.7% (5% OTM)**, 11.7% (10% OTM)
   and 37% (15% OTM) of paths. Median ending value: $15.5k / $20.1k / $21.8k / $14.5k.
 
+**Calmar ratio** (CAGR ÷ |max drawdown %|, $10k account, flat weekly premium, no compounding):
+
+| Strike, premium/week | CAGR | Max DD | Calmar, full 7.6y | Calmar, last 36 months | Bootstrap 3y: median Calmar / P(Calmar < 0) |
+|---|---:|---:|---:|---:|---:|
+| ATM, 1% | 7.7% | −14.0% | 0.55 | 1.04 | 0.73 / 9% |
+| 2.5% OTM, 1% | 9.4% | −16.4% | 0.58 | 1.19 | 0.75 / 9% |
+| **5% OTM, 1%** | 11.6% | −17.9% | 0.65 | 1.56 | 0.87 / 7% |
+| **5% OTM, 2%** | 18.4% | −25.2% | **0.73** | **1.58** | **0.96 / 7%** |
+| 7.5% OTM, 2% | 19.8% | −28.2% | 0.70 | 1.81 | 0.94 / 7% (0.9% ruin) |
+| 10% OTM, 2% | 19.7% | −38.0% | 0.52 | 1.70 | 0.76 / 12% (2.8% ruin) |
+| 15% OTM, 2% | 12.0% | −91.8% | 0.13 | 0.24 | 0.14 / 44% (28% ruin) |
+| *ETH buy & hold (benchmark)* | 36.5% | −77.4% | 0.47 | −0.08 | |
+
+Full table: `results/weekly_otm/RESULTS.md` section 3b. A Calmar above 0.5 is decent and above 1 is good. The last-36-months
+figures are higher because drawdowns were smaller recently. The full-period and bootstrap numbers are the more honest guide.
+
 **What to do:** use **2.5–5% OTM** (about 30–40 delta), flat premium budget, **1–2% of the account per week**.
 Expect 4 losing weeks out of 5 and losing streaks of 15–20 weeks. At 2%/week that is a 30–40% drawdown in premium
 before a winner arrives, so 1% is the comfortable size. Don't go beyond 10% OTM.

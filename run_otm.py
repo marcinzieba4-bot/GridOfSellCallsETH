@@ -260,6 +260,42 @@ def main():
                      "median max DD $": np.median(dds)})
     boot_t = pd.DataFrame(boot).set_index("strike")
 
+    # ---- Calmar ratio = CAGR / |max drawdown %| of the $10k account (flat budget, no compounding)
+    years = (w.index[-1] + pd.Timedelta(days=7) - w.index[0]).days / 365.25
+
+    def calmar(eq, yrs_):
+        if eq.min() <= 0:
+            return np.nan, -100.0, -np.inf
+        cagr = (eq[-1] / eq[0]) ** (1 / yrs_) - 1
+        mdd = ((eq - np.maximum.accumulate(eq)) / np.maximum.accumulate(eq)).min()
+        return cagr, mdd, cagr / abs(mdd)
+
+    cal_rows = []
+    for x in LEVELS:
+        lab = "ATM" if x == 0 else f"{x:.1%} OTM"
+        r = perms[lab][0]
+        for b in (100, 200):
+            eq = np.concatenate([[10_000.0], 10_000 + np.cumsum(b * r)])
+            c, m, cal = calmar(eq, years)
+            c3, m3, cal3 = calmar(np.concatenate([[eq[-157]], eq[-156:]]), 3.0)
+            cs = []
+            for _ in range(3000):
+                st = RNG.integers(0, len(r) - 8, 20)
+                idx = (st[:, None] + np.arange(8)).ravel()[:156]
+                cs.append(calmar(np.concatenate([[10_000.0], 10_000 + np.cumsum(b * r[idx])]), 3.0)[2])
+            cs = np.array(cs)
+            cal_rows.append({"strike": lab, "weekly premium": f"${b} ({b / 100:.0f}% of start)", "CAGR %": 100 * c,
+                             "max DD %": 100 * m, "Calmar, full period": cal, "Calmar, last 36 months": cal3,
+                             "bootstrap 3y Calmar: median": np.median(cs),
+                             "P(3y Calmar < 0) %": 100 * (cs < 0).mean(),
+                             "P(ruin) %": 100 * np.isinf(cs).mean()})
+    cal_t = pd.DataFrame(cal_rows).set_index(["strike", "weekly premium"])
+    px = np.concatenate([w.S0.to_numpy(), [w.S1.iloc[-1]]])
+    c, m, cal = calmar(px, years)
+    _, _, cal3 = calmar(px[-157:], 3.0)
+    bh_t = pd.DataFrame([{"CAGR %": 100 * c, "max DD %": 100 * m, "Calmar, full period": cal,
+                          "Calmar, last 36 months": cal3}], index=["ETH buy & hold"])
+
     # ---- smile actually used (avg buyer IV / ATM buyer IV)
     sm = pd.DataFrame({"moneyness": [f"{'+' if cp == 'C' else '-'}{x:.1%}" for x in LEVELS for cp in ("C", "P")],
                        "type": [cp for x in LEVELS for cp in ("C", "P")],
@@ -308,6 +344,8 @@ def main():
         "## 2. $10,000 account, flat weekly premium budget, history\n", md(acct_t, {c: ",.0f" for c in acct_t.columns}), "\n",
         "## 3. Block bootstrap (8-week blocks), 3 years, $10k account, $200/week premium\n",
         md(boot_t, {"median end $": ",.0f", "5% worst end $": ",.0f", "95% best end $": ",.0f", "median max DD $": ",.0f"}), "\n",
+        "## 3b. Calmar ratio (CAGR / |max drawdown %|), $10k account, flat weekly premium, no compounding\n",
+        cal_t.to_markdown(floatfmt=".2f"), "\n", "Benchmark (same weeks):\n", bh_t.to_markdown(floatfmt=".2f"), "\n",
         "## 4. Smile used (average buyer IV)\n", sm.set_index("moneyness").to_markdown(floatfmt=".1f"), "\n",
     ]
     (OUT / "RESULTS.md").write_text("\n".join(txt))
