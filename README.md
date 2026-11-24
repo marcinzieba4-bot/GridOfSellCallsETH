@@ -190,6 +190,47 @@ Earlier strategies at **real 1-day option prices** (ETH, USD per 1 ETH/day, 2021
 Only the perp grid stays positive, and that comes from perp funding and the short-ETH bet, not from selling
 options. Study 1's Monte Carlo already showed that bet has a negative mean and a very large tail.
 
+## Study 4: BUY weekly options in the direction of the last weekly candle, with martingale sizing
+
+Rule: every Friday 08:00 UTC (Deribit weekly expiry), look at the previous Friday→Friday weekly candle.
+**If it was up, buy an ATM weekly call. If it was down, buy an ATM weekly put.** Hold to expiry.
+Martingale sizing: size = base + (losses since the last equity high) / (8% × spot − premium). That way an
+8% move in your favour repays all earlier losses and earns the base trade's profit. Options are priced at
+**real Deribit weekly IV paid by buyers** (Apr 2019 – Nov 2026, 395 weeks, average IV 69%, premium about 3.8% of spot).
+Run it with `python3 run_weekly.py`. Tables are in [`results/weekly/RESULTS.md`](results/weekly/RESULTS.md).
+
+**The signal (flat size, 1 ETH per week)**
+
+| | PnL 2019–26 | Max DD | Winning weeks | Longest losing streak |
+|---|---:|---:|---:|---:|
+| **Your rule** (up → call, down → put) | **+$2,407** | −$1,765 | 34% | 14 weeks |
+| Reverse (up → put, down → call) | −$4,501 | −$5,598 | 27% | 15 |
+| Always buy call | −$280 | −$2,834 | 34% | 14 |
+| Always buy put | −$1,815 | −$3,095 | 27% | 20 |
+| Buy straddle | −$1,105 | −$2,270 | 38% | 9 |
+
+- Buying options loses on average (random signals: −$979 mean). Your rule beats random with **p = 0.057**.
+  It averaged **+0.46% of spot per week in both halves** of the sample. That is promising but not proven (t = 1.3).
+- ETH and BTC weekly momentum has the **same sign in every sample**, including 2017–19, which this test didn't
+  use. Next week moved in last week's direction 52–54% of the time. But it is weak: only ETH 2019–26 reaches t ≈ 2.
+
+**The martingale**
+
+- With unlimited capital it ends at +$1.06M, but it needed **$2.9M** of capital and a **26,388 ETH** position
+  after a 14-week losing streak (2022). The same martingale on the *reverse* signal ends at +$20M. A martingale
+  "wins" with any signal if the money never runs out, so the profit says nothing about the signal.
+- **Real $10,000 account:** the 8% martingale was **wiped out on 2022-09-09 at every base size** ($1k–$10k
+  base trade). Flat sizing survived every time and ended at $11.8k–$28.2k.
+- **Monte Carlo (3 years, 3,000 bootstrap paths, $10k account):** the martingale loses 90%+ of the account in
+  **73–93% of paths**, and the median ending value is **$0**. Flat sizing at $1k–$5k base had a 0–0.2% ruin chance and a
+  median ending value of $10.6k–$12.9k.
+- A 5% target is far worse (positions grow beyond any account). Even a 15% target needed $58k of capital per
+  1 ETH base.
+
+**What to do:** drop the martingale. If you trade the signal, use **flat size**, with a base trade
+of about 10–25% of the account in notional (premium about 0.4–1% of the account per week). Paper-trade it first, because the momentum
+edge is not yet statistically proven.
+
 ## Limitations
 
 - Studies 1–2 take IV from the 30-day DVOL index (see the correction above; study 3 uses real 1-day trades), not real daily-option quotes. Daily IV can differ, especially at weekends.
