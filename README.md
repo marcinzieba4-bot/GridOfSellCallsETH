@@ -231,6 +231,44 @@ Run it with `python3 run_weekly.py`. Tables are in [`results/weekly/RESULTS.md`]
 of about 10–25% of the account in notional (premium about 0.4–1% of the account per week). Paper-trade it first, because the momentum
 edge is not yet statistically proven.
 
+## Study 5: weekly momentum with OTM options (flat size, no martingale)
+
+Same signal as study 4: if the previous Friday→Friday week was up, buy a weekly call with strike S×(1+x); if it
+was down, buy a put with strike S×(1−x). Hold to Friday 08:00 UTC expiry. Each trade gets the **same premium budget**,
+so results are a return on premium spent (R). Options are priced from the **real Deribit smile**: all trades in
+the next-Friday expiry, 08:00–16:00 UTC, every Friday 2019–2026 (343k trades), taken at the buyer's IV for each strike.
+Run it with `python3 run_otm.py`. Tables are in [`results/weekly_otm/RESULTS.md`](results/weekly_otm/RESULTS.md).
+
+| Strike | Avg return per trade | 90% CI | Winning weeks | Longest losing streak | Beats random direction? (p) | Without best 5 weeks | $10k acct, $200/wk: end / max DD |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| ATM | +19% | 4 to 33% | 33% | 14 | **0.03** | +32× | $25.2k / −$4.1k |
+| 2.5% OTM | +25% | 6 to 43% | 28% | 16 | 0.07 | +42× | $29.7k / −$5.2k |
+| **5% OTM** | **+33%** | 9 to 56% | 23% | 18 | 0.13 | **+51×** | **$36.3k / −$6.2k** |
+| 7.5% OTM | +38% | 11 to 67% | 18% | 29 | 0.38 | +44× | $39.7k / −$7.5k |
+| 10% OTM | +37% | 6 to 72% | 15% | 29 | 0.51 | +17× | $39.3k / −$11.0k |
+| 15% OTM | +17% | −26 to 69% | 8% | **72** | 0.70 | **−165×** | $23.7k / −$23.4k |
+
+"Without best 5 weeks" = total return in units of the weekly budget after removing the 5 best trades.
+
+What it shows:
+
+- **The momentum signal works best near the money.** At ATM to 5% OTM it beat a random direction in **all four
+  periods** (2019–20, 2021–22, 2023–24, 2025–26). It stays profitable if every purchase costs 5 volatility points
+  more than the typical fill (+10% to +15% per trade).
+- **Further OTM, the signal stops helping.** At 7.5–10% OTM the reverse rule and "always buy calls" do about as
+  well, so the profit there comes from cheap upside calls in ETH's rallies, not from the signal. 15% OTM is a lottery:
+  a 72-week losing streak, and a 37% chance of being below the starting $10k after 3 years.
+- **Weekly options are priced at fair value** (buyer IV 69.0% vs 68.8% implied by actual weekly moves). So the
+  edge, if real, comes from direction, not from buying cheap volatility.
+- 3-year bootstrap ($10k account, $200/week): ending below $10k happened in 9.6% (ATM), **7.7% (5% OTM)**, 11.7% (10% OTM)
+  and 37% (15% OTM) of paths. Median ending value: $15.5k / $20.1k / $21.8k / $14.5k.
+
+**What to do:** use **2.5–5% OTM** (about 30–40 delta), flat premium budget, **1–2% of the account per week**.
+Expect 4 losing weeks out of 5 and losing streaks of 15–20 weeks. At 2%/week that is a 30–40% drawdown in premium
+before a winner arrives, so 1% is the comfortable size. Don't go beyond 10% OTM.
+Caveats: testing 6 strikes on the same data makes the best one look better than it is. The signal alone is only
+borderline significant (p = 0.03–0.13). And the bootstrap re-samples the same history. Paper-trade it, or start very small.
+
 ## Limitations
 
 - Studies 1–2 take IV from the 30-day DVOL index (see the correction above; study 3 uses real 1-day trades), not real daily-option quotes. Daily IV can differ, especially at weekends.

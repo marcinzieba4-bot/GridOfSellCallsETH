@@ -98,3 +98,44 @@ if __name__ == "__main__":
         df.to_csv(ROOT / "data" / f"{cur.lower()}_1d_option_iv.csv")
     print(cur, "days", len(df), "with data", int((df.n > 0).sum()), f"{time.time() - t0:.0f}s")
     print(df.describe())
+
+
+# ---------------------------------------------------------------- full smile (all strikes) for one expiry
+def fetch_smile(cur: str, day: datetime, tenor: int = 7, hours: int = 8) -> list:
+    """All trades in the option expiring `tenor` days after `day` (08:00), any strike,
+    during [day 08:00, day 08:00 + hours). Paginated. Cached."""
+    f = CACHE / f"{cur}_{tenor}d_smile" / f"{day:%Y-%m-%d}.json"
+    if f.exists():
+        return json.loads(f.read_text())
+    st = int(day.timestamp() * 1000)
+    en = st + hours * 3600 * 1000
+    code = _exp_code(day + timedelta(days=tenor))
+    keep = []
+    while True:
+        for i in range(6):
+            try:
+                with urllib.request.urlopen(URL.format(cur=cur, st=st, en=en), timeout=60) as r:
+                    res = json.loads(r.read())["result"]
+                break
+            except Exception:
+                time.sleep(2 ** i)
+        else:
+            return keep
+        for t in res["trades"]:
+            parts = t["instrument_name"].split("-")
+            if len(parts) == 4 and parts[1] == code and t.get("iv"):
+                keep.append([t["timestamp"], float(parts[2]), t["index_price"], parts[3], t["direction"],
+                             t["iv"], t["amount"]])
+        if not res.get("has_more") or not res["trades"]:
+            break
+        st = res["trades"][-1]["timestamp"] + 1
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text(json.dumps(keep))
+    return keep
+
+
+def fetch_all_smiles(cur: str = "ETH", workers: int = 3) -> int:
+    days = pd.date_range("2019-04-05 08:00", "2026-11-20 08:00", freq="W-FRI", tz="UTC")
+    with ThreadPoolExecutor(workers) as ex:
+        res = list(ex.map(lambda d: fetch_smile(cur, d.to_pydatetime()), days))
+    return sum(len(r) for r in res)
