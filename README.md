@@ -2,6 +2,13 @@
 
 This repo simulates the following strategy on real ETH data (Apr 2021 to Nov 2026) and in Monte Carlo.
 
+> **Correction (study 3, below): studies 1 and 2 overstated option-selling profits.** They priced 1-day
+> options from the 30-day DVOL index. Real Deribit 1-day ATM options traded at an average **60% IV vs DVOL 73%**,
+> which is about the fair value implied by realised moves (62%). At real prices, selling daily ATM options lost about
+> **6 bps of spot per option at mid** (7 bps at the bid), and every option-selling variant in studies 1–2 loses money.
+> The re-run table is in [Study 3](#study-3-is-sell-straddles-after-up-candles-reliable). The comparisons *between*
+> rules in studies 1–2 still hold. The absolute profit numbers do not.
+
 ## The strategy (as simulated)
 
 Each day runs from 08:00 UTC to 08:00 UTC, which is when Deribit daily options expire.
@@ -140,9 +147,52 @@ What it shows:
 use the candle for **timing/size**: full size after up days, reduced or no size after down days. Verify that on real
 daily-option IVs first.
 
+## Study 3: is "sell straddles after UP candles" reliable?
+
+Run it with `python3 run_reliability.py`. Tables are in [`results/reliability/RESULTS.md`](results/reliability/RESULTS.md), and the summary chart is
+`results/reliability/fig1_forest.png`. Real option prices come from Deribit's public trade history
+(`gridsim/option_iv.py`): every day, the near-ATM trades in the next-day expiry between 08:00 and 11:00 UTC.
+
+**Verdict: not reliable. Don't trade it.**
+
+| Check | Result | Pass? |
+|---|---|:-:|
+| ETH 2021–26, DVOL pricing (the original finding) | +13.6 bps, 90% CI 3.7 to 23.5 | ✅ |
+| **Real Deribit 1-day option prices** (ETH) | **+7.7 bps, CI −1.7 to 16.8**. Both sides lose: −3.6 bps after up, −11.3 after down | ❌ |
+| Real prices, BTC | −1.6 bps | ❌ |
+| Other asset: BTC 2021–26, DVOL pricing | +1.5 bps, CI −6.4 to 9.1 | ❌ |
+| Out of sample: ETH Sep 2017 – Mar 2021 | +8.6 bps, CI −8.0 to 25.7 | ❌ |
+| Out of sample: BTC Sep 2017 – Mar 2021 | −3.1 bps | ❌ |
+| Stable over time | 1st half +5.9 (noise), 2nd half +21.8. Years: 4 up, 2 flat or negative | ⚠️ |
+| Neighbouring signal definitions | calendar day ✅, 72h ✅, 48h ⚠️, **12h and 4h negative** ❌ | ⚠️ |
+| Driven by a few big days? | median difference only 4.8 bps vs a mean of 13.6 | ⚠️ |
+
+Why it fails:
+
+- **The market already reprices after down days.** Real 1-day IV / DVOL averaged 0.83 after down candles vs
+  0.80 after up candles (BTC: 0.81 vs 0.79). The 30-day DVOL doesn't show this, so pricing with DVOL created
+  most of the "edge".
+- **Daily options carry no volatility premium.** Real 1-day ATM IV averaged 60.6%. Fair value from realised
+  moves was 62.1%. Selling them at mid lost about 6 bps per option, both after up and after down days. Timing
+  can only make the losses smaller.
+
+Earlier strategies at **real 1-day option prices** (ETH, USD per 1 ETH/day, 2021–26):
+
+| Strategy | PnL, DVOL pricing | **PnL, real prices** | Max DD, real prices |
+|---|---:|---:|---:|
+| Study 1 A: plain call selling | +7,223 | **−3,490** | −4,184 |
+| Study 1 B: perp grid | +10,902 | +7,762 (of which funding +6,643) | −17,867 |
+| Study 1 J: grid + stop at BE+10% | +5,352 | −4,202 | −6,108 |
+| Study 2: your candle rule | +7,958 | −2,753 | −5,109 |
+| Study 2: half straddle daily | +7,069 | −3,610 | −4,008 |
+| Study 2: straddle after UP only | +10,860 | −1,604 | −2,126 |
+
+Only the perp grid stays positive, and that comes from perp funding and the short-ETH bet, not from selling
+options. Study 1's Monte Carlo already showed that bet has a negative mean and a very large tail.
+
 ## Limitations
 
-- IV comes from the 30-day DVOL index, not real daily-option quotes. Daily IV can differ, especially at weekends.
+- Studies 1–2 take IV from the 30-day DVOL index (see the correction above; study 3 uses real 1-day trades), not real daily-option quotes. Daily IV can differ, especially at weekends.
 - Daily bars only. Intraday drawdowns, margin calls and liquidations are not modelled, and BE fills
   assume the limit order fills at the BE price.
 - Binance funding is used as a stand-in for Deribit funding. Funding for Nov 2026 is not published yet, so it is set to 0.
