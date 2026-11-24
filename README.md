@@ -103,6 +103,43 @@ build-up), `fig3_rolling_windows.png`, `fig4_monte_carlo.png`.
 If you want the perp grid, treat it as an explicit, capped short-ETH trade (stop at about BE+10%, max 3–5
 perps) that you turn on only when you are bearish. Do not treat it as a way to repair losses.
 
+## Study 2: sell a call or a put depending on the previous candle (take the whole loss)
+
+Rule: **if the previous daily candle (08:00 → 08:00 UTC) was DOWN, sell an ATM call. If it was UP, sell an ATM put.**
+There is no hedge and no perps; every loss is taken in full. Run it with `python3 run_directional.py`; full tables are in
+[`results/directional/RESULTS.md`](results/directional/RESULTS.md).
+
+| Per ~1 ETH of options sold per day | PnL 2021–26 | Max DD | Sharpe | Bootstrap: losing years | Bootstrap: 1% worst year |
+|---|---:|---:|---:|---:|---:|
+| **Your rule** (call after down, put after up) | **+$7,958** | −$2,178 | 1.31 | 11.9% | −$1,545 |
+| Always sell call | +$7,083 | −$1,746 | 1.15 | 13.6% | −$1,499 |
+| Always sell put | +$7,055 | −$1,751 | 1.05 | 17.3% | −$1,964 |
+| Reverse (call after up, put after down) | +$6,182 | −$2,011 | 0.91 | 19.7% | −$1,992 |
+| Half straddle every day (0.5 call + 0.5 put) | +$7,069 | **−$788** | 1.95 | 5.5% | −$616 |
+| **Straddle only after an UP candle** (skip after down) | **+$10,860** | −$1,063 | **2.25** | **1.7%** | −$158 |
+
+What it shows:
+
+1. **Your rule beats always-call or always-put by about $875 over 5.6 years, but this is not statistically real.**
+   Shuffling the same up/down signals at random gives +$3.3k to +$10.7k (5–95% range), and
+   **p = 0.33**. Year by year it is mixed: it beat always-call in 3 of 6 years, lost in 2 and tied in 1.
+   ETH's day-to-day return autocorrelation is about 0.004, so yesterday's direction says almost nothing about tomorrow's.
+2. **Picking one side is the risky choice.** A call and a put sold together can't both lose on the same day, so a
+   half straddle earns the same profit per option as your rule with **a third of the drawdown** (−$788 vs −$2,178).
+3. **What mattered was *whether* to sell, not *which side*.** Selling either side after an UP candle earned
+   **19.2 bps of spot per option**. After a DOWN candle it earned only **5.6 bps** (t = 2.46, permutation p = 0.01;
+   better in 4 of 6 years). After down days ETH moves about 12% more the next day (274 vs 245 bps), but the 30-day
+   DVOL used for pricing barely changes (73.5% vs 72.9%), so options sold after down days were too cheap.
+   *Caveat: real 1-day options often reprice after a drop more than the 30-day index does. This edge may be smaller
+   with real quotes, and it was found after several tests (data-mining risk). Check it against real Deribit daily
+   quotes before sizing up.*
+4. **Selling price still dominates.** Every 5% of IV changes the PnL by about $4k over the period. That is
+   much more than the call/put choice (+$875).
+
+**What to do:** don't pick the side from the previous candle. Sell **both sides (a straddle or strangle)** and
+use the candle for **timing/size**: full size after up days, reduced or no size after down days. Verify that on real
+daily-option IVs first.
+
 ## Limitations
 
 - IV comes from the 30-day DVOL index, not real daily-option quotes. Daily IV can differ, especially at weekends.
@@ -121,7 +158,7 @@ pip install numpy pandas matplotlib tabulate
 python3 run_analysis.py
 ```
 
-`run_analysis.py` downloads and caches the data into `data/`, then writes `results/`. Rules are set in
+`run_analysis.py` (study 1) and `run_directional.py` (study 2) download and caches the data into `data/`, then writes `results/`. Rules are set in
 `gridsim/engine.py` → `Config` (`alloc`, `iv_mult`, `max_perps`, `stop_pct`, `profit_share`,
 `trigger="itm"`, fees, funding). For a single run:
 
