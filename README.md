@@ -158,7 +158,7 @@ pip install numpy pandas matplotlib tabulate
 python3 run_analysis.py
 ```
 
-`run_analysis.py` (study 1) and `run_directional.py` (study 2) download and caches the data into `data/`, then writes `results/`. Rules are set in
+`run_analysis.py` (study 1) and `run_directional.py` (study 2) download and cache the data into `data/`, then write `results/`. Study 1 rules are set in
 `gridsim/engine.py` → `Config` (`alloc`, `iv_mult`, `max_perps`, `stop_pct`, `profit_share`,
 `trigger="itm"`, fees, funding). For a single run:
 
